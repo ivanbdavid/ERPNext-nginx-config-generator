@@ -13,13 +13,17 @@ def check_dns_record_exists(domain):
     except socket.gaierror:
         return False
 
+def get_template_path():
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+    default_template_path = os.path.join(script_directory, 'nginx_template.conf')
+    return default_template_path
 
 def generate_nginx_config(domain, nginx_template_path):
     uid = os.getlogin()
-    # config_file = f'/home/{uid}/frappe-bench/config/nginx.conf'
-    config_file = f'/home/{uid}/Downloads/nginx.conf'
+    config_file = f'/home/{uid}/frappe-bench/config/nginx.conf'
+
     if domain_exists(domain, config_file):
-        print("Server block exists")
+        print("Server block exists in config file")
         sys.exit(1)
 
     with open(nginx_template_path, 'r') as template_file:
@@ -46,22 +50,27 @@ if _name_ == "_main_":
         sys.exit(1)
 
     domain = sys.argv[1]
-    nginx_template_path = 'nginx_template.conf'
+    
+    if len(sys.argv) >= 3:
+        nginx_template_path = sys.argv[2]
+    else:
+        nginx_template_path = get_template_path()
+    
+    if not os.path.isfile(nginx_template_path):
+        print(f"Invalid template file path: {nginx_template_path}")
+        sys.exit(1)
 
     generate_nginx_config(domain, nginx_template_path)
 
-    # The following commands will require appropriate permissions to execute nginx and certbot with sudo.
-
     # Check nginx configuration
-    #subprocess.run(['sudo', 'nginx', '-t'])
+    subprocess.run(['sudo', 'nginx', '-t'])
 
     # Restart nginx
-    #subprocess.run(['sudo', 'systemctl', 'restart', 'nginx'])
+    subprocess.run(['sudo', 'systemctl', 'restart', 'nginx'])
 
     if not check_dns_record_exists(domain):
-        print(f"Please add DNS record before obtaining an SSL certificate. \nRun sudo certbot --nginx -d domain_name after adding record.")
+        print(f"DNS record not found. Add DNS record for domain. \nRun sudo certbot --nginx -d domain_name after adding record.")
         sys.exit(1)
 
-
     #Obtain SSL certificate using certbot
-    #subprocess.run(['sudo', 'certbot', '--nginx', '-d', domain])
+    subprocess.run(['sudo', 'certbot', '--nginx', '-d', domain])
